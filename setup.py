@@ -32,6 +32,8 @@ class BuildProto(setuptools.Command):
         subprocess.run(['protoc', *includes, *outputs, *proto_files])
         
         with open('cartaproto/proto/__init__.py', 'w') as initfile:
+            all_submodules = []
+
             for pb2_file in glob.glob('cartaproto/proto/*_pb2.py'):
                 # There seriously isn't a better way to fix this relative import as of time of writing
                 # See https://github.com/protocolbuffers/protobuf/issues/1491
@@ -40,10 +42,15 @@ class BuildProto(setuptools.Command):
                 data = re.sub("^(import .*_pb2)", r"from . \1", data, flags=re.MULTILINE)
                 with open(pb2_file, 'w') as f:
                     f.write(data)
-                    
+
                 # We also automatically import all the submodules to allow discovery    
                 submodule = os.path.splitext(os.path.basename(pb2_file))[0]
                 initfile.write(f"from . import {submodule}\n")
+
+                all_submodules.append(submodule)
+
+            # This prevents linting tools from complaining about unused imports
+            initfile.write(f"__all__ = {repr(all_submodules)}\n")
                 
             # Automatically parse the version from the docs
             with open('carta-protobuf/docs/src/changelog.rst') as f:
