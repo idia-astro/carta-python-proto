@@ -7,8 +7,8 @@ import os
 import argparse
 import sys
 
-from cartaicd.client import Client
-import cartaicdproto as cp
+from cartaproto.client import Client
+from cartaproto.messages import OpenFile, SetSpatialRequirements, SetCursor, Point
 
 parser = argparse.ArgumentParser(description='Test spatial profiles.')
 parser.add_argument('image', help='path to image file')
@@ -33,24 +33,24 @@ file_path = args.image
 file_dir, file_name = os.path.split(file_path)
 
 # You have to construct the message objects yourself, but don't worry about the event headers -- the client will add them automatically.
-client.send(cp.open_file.OpenFile(
+client.send(OpenFile(
     file=file_name, 
     directory=file_dir, 
     file_id=1
 ))
 
-client.send(cp.region_requirements.SetSpatialRequirements(
+client.send(SetSpatialRequirements(
     file_id=1, 
     region_id=0, 
     spatial_profiles=(
-        cp.region_requirements.SetSpatialRequirements.SpatialConfig(coordinate="x", start=args.x_start, end=args.x_end, mip=args.mip),
-        cp.region_requirements.SetSpatialRequirements.SpatialConfig(coordinate="y", start=args.y_start, end=args.y_end, mip=args.mip)
+        SetSpatialRequirements.SpatialConfig(coordinate="x", start=args.x_start, end=args.x_end, mip=args.mip),
+        SetSpatialRequirements.SpatialConfig(coordinate="y", start=args.y_start, end=args.y_end, mip=args.mip)
     )
 ))
 
-client.send(cp.set_cursor.SetCursor(
+client.send(SetCursor(
     file_id=1, 
-    point=cp.defs.Point(
+    point=Point(
         x=args.x, 
         y=args.y
     )
