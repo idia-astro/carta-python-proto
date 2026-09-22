@@ -5,10 +5,9 @@
 
 import os
 import sys
-import re
 
-from cartaicd.client import Client
-import cartaicdproto as cp
+from cartaproto.client import Client
+from cartaproto.messages import OpenFile
 
 # Create the client -- this automatically connects and registers with the backend
 client = Client("localhost", 3002, "TEST_TOKEN")
@@ -21,7 +20,7 @@ file_path = sys.argv[1]
 file_dir, file_name = os.path.split(file_path)
 
 # You have to construct the message objects yourself, but don't worry about the event headers -- the client will add them automatically.
-client.send(cp.open_file.OpenFile(
+client.send(OpenFile(
     file=file_name, 
     directory=file_dir, 
     file_id=1

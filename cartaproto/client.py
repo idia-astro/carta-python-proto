@@ -1,31 +1,35 @@
 import asyncio
-import re
 import struct
 import uuid
 
 import numpy as np
 import websockets
 
-import cartaicdproto as cp
-try:
-    from google._upb._message import MessageMeta
-except ModuleNotFoundError:
-    from google.protobuf.pyext._message import MessageMeta
+from .messages import messages, RegisterViewer
+from .enums import EventType
+from .proto import MAJOR_VERSION
 
-MSG_CLASS_TO_EVENT_TYPE = {}
-EVENT_TYPE_TO_MSG_CLASS = {}
-
-for cp_key, cp_val in cp.__dict__.items():
-    if cp_key.endswith("_pb2") and cp_key not in ("enums_pb2", "defs_pb2"):
-        for key, val in cp_val.__dict__.items():
-            if isinstance(val, MessageMeta):
-                event_name = re.sub('([a-z])([A-Z])', r'\1_\2', key).upper()
-                event_type = getattr(cp.enums.EventType, event_name, None)
-                if event_type is not None:
-                    MSG_CLASS_TO_EVENT_TYPE[val] = event_type
-                    EVENT_TYPE_TO_MSG_CLASS[event_type] = val
 
 class Client:
+    @classmethod
+    def init_event_maps(cls):
+        cls.EVENT_TYPE_TO_MSG_CLASS = dict()
+
+        for event_name, event_type in EventType.items():
+            class_name = event_name.title().replace("_", "")
+            try:
+                cls.EVENT_TYPE_TO_MSG_CLASS[event_type] = messages[class_name]
+            except KeyError:
+                if event_name == "EMPTY_EVENT":
+                    continue # this is a dummy value
+                if event_name == "FILE_LIST_PROGRESS":
+                    # We should fix this name
+                    cls.EVENT_TYPE_TO_MSG_CLASS[EventType.FILE_LIST_PROGRESS] = messages["ListProgress"]
+                    continue
+                raise
+
+        cls.MSG_CLASS_TO_EVENT_TYPE = {v:k for k, v in cls.EVENT_TYPE_TO_MSG_CLASS.items()}
+
     def __init__(self, host, port, token):
         self.url = f"ws://{host}:{port}/websocket?token={token}"
         self.sent_history = []
@@ -38,7 +42,8 @@ class Client:
         self.socket = await websockets.connect(url, ping_interval=None)
         
     async def register(self):
-        message = cp.register_viewer.RegisterViewer()
+        message = RegisterViewer()
+        # TODO remove this numpy dependency!
         message.session_id = np.uint32(uuid.uuid4().int % np.iinfo(np.uint32()).max) # why?
         
         await self.send_(message)
@@ -78,18 +83,19 @@ class Client:
         
     def pack(self, message):
         try:
-            event_type = MSG_CLASS_TO_EVENT_TYPE[message.__class__]
+            event_type = self.MSG_CLASS_TO_EVENT_TYPE[message.__class__]
         except KeyError:
             raise ValueError(f"{message.__class__.__name__} is not a valid event class.")
         
-        header = struct.Struct('HHI').pack(event_type, cp.MAJOR_VERSION, uuid.uuid4().int % np.iinfo(np.uint32()).max)
+        # TODO remove this numpy dependency!
+        header = struct.Struct('HHI').pack(event_type, MAJOR_VERSION, uuid.uuid4().int % np.iinfo(np.uint32()).max)
         
         return header + message.SerializeToString()
         
     def unpack(self, data):
         event_type, icd_version, message_id = struct.Struct('HHI').unpack(data[:8])
         try:
-            event_class = EVENT_TYPE_TO_MSG_CLASS[event_type]
+            event_class = self.EVENT_TYPE_TO_MSG_CLASS[event_type]
         except KeyError:
             raise ValueError(f"{event_type} is not a valid event type.")
         
@@ -101,3 +107,5 @@ class Client:
     def clear(self):
         self.sent_history = []
         self.received_history = []
+
+Client.init_event_maps()
