@@ -2,3 +2,4 @@ __pycache__
 cartaproto/proto
 build
 *.egg-info
+.vscode

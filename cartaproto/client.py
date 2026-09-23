@@ -30,8 +30,13 @@ class Client:
 
         cls.MSG_CLASS_TO_EVENT_TYPE = {v:k for k, v in cls.EVENT_TYPE_TO_MSG_CLASS.items()}
 
-    def __init__(self, host, port, token):
-        self.url = f"ws://{host}:{port}/websocket?token={token}"
+    @classmethod
+    def from_parts(cls, host, port, token):
+        url = f"ws://{host}:{port}/websocket?token={token}"
+        return cls(url)
+
+    def __init__(self, url):
+        self.url = url
         self.sent_history = []
         self.received_history = []
 
