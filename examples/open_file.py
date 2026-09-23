@@ -10,7 +10,7 @@ from cartaproto.client import Client
 from cartaproto.messages import OpenFile
 
 # Create the client -- this automatically connects and registers with the backend
-client = Client("localhost", 3002, "TEST_TOKEN")
+client = Client.from_parts("localhost", 3002, "TEST_TOKEN")
 
 ack = client.received_history[-1]
 if "Invalid ICD version number" in ack.message:
