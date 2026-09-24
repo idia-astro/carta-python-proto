@@ -44,7 +44,7 @@ class Client:
         asyncio.get_event_loop().run_until_complete(self.register())
         
     async def connect(self, url):
-        self.socket = await websockets.connect(url, ping_interval=None)
+        self.socket = await websockets.connect(url, ping_interval=None, max_size=256*1024*1024)
         
     async def register(self):
         message = RegisterViewer()
